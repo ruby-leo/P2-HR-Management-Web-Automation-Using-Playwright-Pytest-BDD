@@ -1,0 +1,18 @@
+# Virtual Environment & Python bytecode
+.venv/
+__pycache__/
+*.py[cod]
+
+# PyCharm & IDE files
+.idea/
+
+# Node Dependencies
+node_modules/
+
+# Test Artifacts & Execution Cache
+.pytest_cache/
+test-results/
+
+# Allure Reports & Raw Results
+allure-results/
+allure-report/
