@@ -35,6 +35,21 @@ pipeline {
             }
         }
 
+        stage('Trust GitHub SSH host key') {
+            steps {
+                // The Docker agent is a fresh container every run, so it has no
+                // known_hosts entry for github.com yet. Without this, any
+                // git@github.com clone/push over SSH fails with
+                // "Host key verification failed" (StrictHostKeyChecking is on
+                // by default). ssh-keyscan just fetches GitHub's public host
+                // key - it does not require or use any credentials.
+                sh '''
+                    mkdir -p ~/.ssh
+                    ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+                '''
+            }
+        }
+
         stage('Install Node.js (for Allure CLI)') {
             steps {
                 sh '''
@@ -84,14 +99,16 @@ pipeline {
 
         stage('Fetch previous Allure history') {
             steps {
-                sh '''
-                    rm -rf gh-pages-tmp
-                    git clone --depth 1 --branch ${GH_PAGES_BRANCH} ${GH_PAGES_REPO} gh-pages-tmp || \
-                        echo "gh-pages branch not found yet (first run) - continuing without history"
-                    if [ -d gh-pages-tmp/history ]; then
-                        cp -r gh-pages-tmp/history allure-results/history
-                    fi
-                '''
+                sshagent(credentials: ["${GH_DEPLOY_KEY_ID}"]) {
+                    sh '''
+                        rm -rf gh-pages-tmp
+                        git clone --depth 1 --branch ${GH_PAGES_BRANCH} ${GH_PAGES_REPO} gh-pages-tmp || \
+                            echo "gh-pages branch not found yet (first run) - continuing without history"
+                        if [ -d gh-pages-tmp/history ]; then
+                            cp -r gh-pages-tmp/history allure-results/history
+                        fi
+                    '''
+                }
             }
         }
 
