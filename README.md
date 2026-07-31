@@ -130,9 +130,3 @@ This setup is designed to be lifted into a new project with minimal changes:
 6. **Run it** — `pytest`. Parallelism, cross-browser coverage, retries, and full-run screenshots/videos in Allure all work immediately, with no further configuration.
 
 The `--browser`, `-n`, `--screenshot`, `--video`, and `--reruns` flags in `pytest.ini` are the only levers most teams will ever need to touch.
-
----
-
-## License
-
-This project is intended as a reference automation framework. Adapt freely for your own testing needs.

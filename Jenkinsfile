@@ -124,6 +124,30 @@ pipeline {
                     rm -rf ${ALLURE_REPORT}
                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT}
                 '''
+                // Drop a shields.io-compatible badge.json into the report directory.
+                // It rides along with the rest of ALLURE_REPORT into gh-pages in the
+                // next stage, so README's Build Status badge
+                // (img.shields.io/endpoint?url=.../badge.json) has something to read.
+                script {
+                    switch (currentBuild.currentResult) {
+                        case 'SUCCESS':
+                            env.BADGE_MESSAGE = 'passing'
+                            env.BADGE_COLOR   = 'brightgreen'
+                            break
+                        case 'UNSTABLE':
+                            env.BADGE_MESSAGE = 'unstable'
+                            env.BADGE_COLOR   = 'yellow'
+                            break
+                        default:
+                            env.BADGE_MESSAGE = 'failing'
+                            env.BADGE_COLOR   = 'red'
+                    }
+                }
+                sh '''
+                    cat > ${ALLURE_REPORT}/badge.json <<EOF
+{"schemaVersion":1,"label":"build","message":"${BADGE_MESSAGE}","color":"${BADGE_COLOR}"}
+EOF
+                '''
             }
         }
 
