@@ -1,1 +1,1 @@
-{"id":"104263af9d4c509f9175566bb9db2ec6","fullName":"features/login.feature:Verify \"Forgot Password\" functionality","name":"Verify \"Forgot Password\" functionality [firefox]","status":"passed","testResultsByEnv":{"default":"0d6be4409e5cabd751b5c52404a6ae16"}}
+{"id":"104263af9d4c509f9175566bb9db2ec6","fullName":"features/login.feature:Verify \"Forgot Password\" functionality","name":"Verify \"Forgot Password\" functionality [chromium]","status":"passed","testResultsByEnv":{"default":"b83a9831d375b4d46a55fed472ac3e6d"}}
