@@ -41,6 +41,8 @@ pipeline {
                     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
                     apt-get install -y nodejs
                     node --version
+                    npm install -g allure
+                    allure --version
                 '''
             }
         }
@@ -56,22 +58,6 @@ pipeline {
         // Browsers are already present in the mcr.microsoft.com/playwright/python image,
         // so there's no separate "playwright install" stage needed.
 
-        stage('Fetch previous Allure history') {
-            // Copies the history/ folder from the last published report so the new
-            // report keeps trend/retry graphs instead of resetting every build.
-            steps {
-                sh '''
-                    rm -rf gh-pages-tmp
-                    git clone --depth 1 --branch ${GH_PAGES_BRANCH} ${GH_PAGES_REPO} gh-pages-tmp || \
-                        echo "gh-pages branch not found yet (first run) - continuing without history"
-                    mkdir -p allure-results
-                    if [ -d gh-pages-tmp/history ]; then
-                        cp -r gh-pages-tmp/history allure-results/history
-                    fi
-                '''
-            }
-        }
-
         stage('Run tests') {
             steps {
                 sh '''
@@ -82,6 +68,9 @@ pipeline {
             // want the Allure report generated and published so failures are visible.
             post {
                 always {
+                   allure allureVersion: '3',
+                            includeProperties: false,
+                            results: [[path: 'allure-results']]
                     script {
                         currentBuild.result = currentBuild.result ?: 'SUCCESS'
                     }
@@ -89,10 +78,23 @@ pipeline {
             }
         }
 
+        stage('Fetch previous Allure history') {
+            steps {
+                sh '''
+                    rm -rf gh-pages-tmp
+                    git clone --depth 1 --branch ${GH_PAGES_BRANCH} ${GH_PAGES_REPO} gh-pages-tmp || \
+                        echo "gh-pages branch not found yet (first run) - continuing without history"
+                    if [ -d gh-pages-tmp/history ]; then
+                        cp -r gh-pages-tmp/history allure-results/history
+                    fi
+                '''
+            }
+        }
+
         stage('Generate Allure report') {
             steps {
                 sh '''
-                    npm install allure
+                    npm install allure-commandline
                     npx allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
                 '''
             }
