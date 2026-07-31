@@ -60,9 +60,11 @@ pipeline {
 
         stage('Run tests') {
             steps {
-                sh '''
-                    pytest
-                '''
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '''
+                        pytest
+                    '''
+                }
             }
             // Don't fail the whole pipeline immediately on test failures - we still
             // want the Allure report generated and published so failures are visible.
@@ -71,9 +73,6 @@ pipeline {
                    allure allureVersion: '3',
                             includeProperties: false,
                             results: [[path: 'allure-results']]
-                    script {
-                        currentBuild.result = currentBuild.result ?: 'SUCCESS'
-                    }
                 }
             }
         }
