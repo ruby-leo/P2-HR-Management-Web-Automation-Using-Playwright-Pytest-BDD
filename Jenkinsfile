@@ -60,6 +60,11 @@ pipeline {
 
         stage('Run tests') {
             steps {
+                // catchError prevents the non-zero pytest exit code from throwing a
+                // step exception, which is what was aborting the pipeline and causing
+                // every later stage to be skipped. The stage is still marked FAILURE
+                // and the overall build UNSTABLE so failures stay visible, but the
+                // pipeline keeps going so the Allure report still gets published.
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     sh '''
                         pytest
@@ -92,9 +97,15 @@ pipeline {
 
         stage('Generate Allure report') {
             steps {
+                // Use the global Allure 3 CLI installed earlier (npm install -g allure).
+                // Do NOT npm install/npx the "allure-commandline" package here - that's
+                // the old, deprecated Allure 2 CLI with different command syntax, and
+                // mixing it with the global Allure 3 binary is what caused
+                // "Unknown Syntax Error: Command not found". rm -rf replaces the old
+                // --clean flag, which isn't part of the Allure 3 CLI.
                 sh '''
-                    npm install allure-commandline
-                    npx allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
+                    rm -rf ${ALLURE_REPORT}
+                    allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT}
                 '''
             }
         }
