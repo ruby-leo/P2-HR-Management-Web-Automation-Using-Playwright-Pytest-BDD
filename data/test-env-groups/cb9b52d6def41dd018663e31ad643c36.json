@@ -1,1 +1,1 @@
-{"id":"cb9b52d6def41dd018663e31ad643c36","fullName":"features/navigation.feature:Verify side navigation menu items","name":"Verify side navigation menu items [chromium]","status":"passed","testResultsByEnv":{"default":"5a3bc0681098a6c489a14fcb838f2368"}}
+{"id":"cb9b52d6def41dd018663e31ad643c36","fullName":"features/navigation.feature:Verify side navigation menu items","name":"Verify side navigation menu items [firefox]","status":"passed","testResultsByEnv":{"default":"0e423c6126aa07c19aaf805ccc7b392c"}}
