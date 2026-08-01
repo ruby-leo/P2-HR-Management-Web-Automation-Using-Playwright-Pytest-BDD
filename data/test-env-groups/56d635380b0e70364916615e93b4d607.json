@@ -1,1 +1,1 @@
-{"id":"56d635380b0e70364916615e93b4d607","fullName":"features/login.feature:Verify OrangeHRM URL accessibility","name":"Verify OrangeHRM URL accessibility [chromium]","status":"passed","testResultsByEnv":{"default":"ee4a3c95c08f036c83fed262f547ba4c"}}
+{"id":"56d635380b0e70364916615e93b4d607","fullName":"features/login.feature:Verify OrangeHRM URL accessibility","name":"Verify OrangeHRM URL accessibility [firefox]","status":"passed","testResultsByEnv":{"default":"2432b06903c56e319cae3108db1c4af6"}}
