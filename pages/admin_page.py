@@ -34,16 +34,18 @@ class AdminPage(BasePage):
         self.add_button.click()
 
     def select_user_role(self, role: str):
+        """Opens the OXD custom dropdown (not a native <select>) and clicks the matching option by exact text."""
         self.user_role_dropdown.click()
         self.dropdown_option_container.get_by_text(role, exact=True).click()
 
     def select_status(self, status: str):
+        """Opens the Status custom dropdown and clicks the matching option by exact text."""
         self.status_dropdown.click()
         self.dropdown_option_container.get_by_text(status, exact=True).click()
 
     def select_employee_name(self, name: str):
+        """Types into the autocomplete input and clicks the first matching suggestion from the hint dropdown."""
         self.employee_name_input.fill(name)
-        # Wait for autocomplete hint and pick the matching employee
         self.dropdown_option_container.get_by_text(name, exact=False).first.click()
 
     def fill_user_credentials(self, username: str, password: str):

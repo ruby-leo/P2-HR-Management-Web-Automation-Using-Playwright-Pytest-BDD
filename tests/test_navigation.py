@@ -18,17 +18,17 @@ def logged_in_user(pages: PageRegistry):
 # =================================================================================
 # Scenario @TC-04: Verify visibility and clickability of main navigation menu items
 # =================================================================================
-# 1. This step HAS a table in Gherkin, so we pass `datatable`
 @then("the side navigation panel should display the following items:", target_fixture="expected_menu_items")
 def verify_side_menu_items(pages: PageRegistry, datatable):
+    """Has a Gherkin table, so datatable is used. Returns the expected item
+    names as target_fixture so the next step (which has no table of its own)
+    can reuse the same list instead of duplicating it."""
     expected_menu_items = [row[0] for row in datatable]
     for item_name in expected_menu_items:
         side_menu_item = pages.side_panel_page.get_side_menu_item(item_name)
         expect(side_menu_item).to_be_visible()
     return expected_menu_items
 
-# 2. This step DOES NOT have a table in Gherkin, so we DO NOT use `datatable`.
-# Instead, we pass `expected_menu_items` fixture returned from the previous step!
 @then("each menu item should be visible and clickable")
 def verify_side_menu_clickable(pages: PageRegistry, expected_menu_items):
     for item_name in expected_menu_items:

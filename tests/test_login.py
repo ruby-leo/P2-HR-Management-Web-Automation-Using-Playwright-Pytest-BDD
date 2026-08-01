@@ -65,6 +65,9 @@ def click_login(pages: PageRegistry):
 
 @then(parsers.parse('the login outcome should be "{expected_result}"'))
 def verify_login_outcome(pages: PageRegistry, expected_result: str):
+    """For a 'Success' outcome, checks the dashboard loaded; for any failure
+    outcome, checks the login button is still present (user stayed on the
+    login page rather than being redirected)."""
     if expected_result == "Success":
         expect(pages.dashboard_page.dashboard_header).to_be_visible()
     else:
@@ -72,6 +75,9 @@ def verify_login_outcome(pages: PageRegistry, expected_result: str):
 
 @then(parsers.parse('an appropriate message "{message}" should be displayed if rejected'))
 def verify_rejection_message(pages: PageRegistry, message: str):
+    """Skips the check when message == 'Dashboard' - that value signals a
+    successful login (no rejection message expected) for this Scenario
+    Outline's shared step."""
     if message != "Dashboard":
         error_locator = pages.login_page.alert_error_msg.or_(pages.login_page.input_field_error_msg)
         expect(error_locator).to_contain_text(message)

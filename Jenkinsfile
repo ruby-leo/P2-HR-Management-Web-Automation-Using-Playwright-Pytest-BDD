@@ -1,7 +1,5 @@
 pipeline {
-    // Pin the exact Playwright version to match requirements.txt so browsers on the
-    // agent always match what pip installs. Update this tag whenever there is a bump for
-    // playwright== in requirements.txt.
+    // Keep in sync with the playwright== version in requirements.txt.
     agent {
         docker {
             image 'mcr.microsoft.com/playwright/python:v1.61.0-noble'
@@ -16,8 +14,7 @@ pipeline {
         // ---- EDIT THESE FOR YOUR REPO ----
         GH_PAGES_REPO   = "git@github.com:ruby-leo/P2-HR-Management-Web-Automation-Using-Playwright-Pytest-BDD.git"
         GH_PAGES_BRANCH = "gh-pages"
-        // Jenkins credential ID of an SSH deploy key with write access to the repo above
-        // (Manage Jenkins -> Credentials -> add "SSH Username with private key")
+        // Jenkins credential: SSH Username with private key, deploy key with write access
         GH_DEPLOY_KEY_ID = "github-deploy-key"
     }
 
@@ -37,12 +34,8 @@ pipeline {
 
         stage('Trust GitHub SSH host key') {
             steps {
-                // The Docker agent is a fresh container every run, so it has no
-                // known_hosts entry for github.com yet. Without this, any
-                // git@github.com clone/push over SSH fails with
-                // "Host key verification failed" (StrictHostKeyChecking is on
-                // by default). ssh-keyscan just fetches GitHub's public host
-                // key - it does not require or use any credentials.
+                // Fresh container every run -> no known_hosts yet, so SSH git
+                // operations to GitHub would fail host verification without this.
                 sh '''
                     mkdir -p ~/.ssh
                     ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
@@ -70,24 +63,18 @@ pipeline {
                 '''
             }
         }
-        // Browsers are already present in the mcr.microsoft.com/playwright/python image,
-        // so there's no separate "playwright install" stage needed.
+        // Browsers ship with the Playwright Docker image, so no separate install step.
 
         stage('Run tests') {
             steps {
-                // catchError prevents the non-zero pytest exit code from throwing a
-                // step exception, which is what was aborting the pipeline and causing
-                // every later stage to be skipped. The stage is still marked FAILURE
-                // and the overall build UNSTABLE so failures stay visible, but the
-                // pipeline keeps going so the Allure report still gets published.
+                // Keep pytest's non-zero exit from aborting the pipeline, so the
+                // Allure report still gets generated and published on failures.
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     sh '''
                         pytest
                     '''
                 }
             }
-            // Don't fail the whole pipeline immediately on test failures - we still
-            // want the Allure report generated and published so failures are visible.
             post {
                 always {
                    allure allureVersion: '3',
@@ -114,20 +101,14 @@ pipeline {
 
         stage('Generate Allure report') {
             steps {
-                // Use the global Allure 3 CLI installed earlier (npm install -g allure).
-                // Do NOT npm install/npx the "allure-commandline" package here - that's
-                // the old, deprecated Allure 2 CLI with different command syntax, and
-                // mixing it with the global Allure 3 binary is what caused
-                // "Unknown Syntax Error: Command not found". rm -rf replaces the old
-                // --clean flag, which isn't part of the Allure 3 CLI.
+                // Uses the global Allure 3 CLI (npm install -g allure)
                 sh '''
                     rm -rf ${ALLURE_REPORT}
                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT}
                 '''
-                // Drop a shields.io-compatible badge.json into the report directory.
-                // It rides along with the rest of ALLURE_REPORT into gh-pages in the
-                // next stage, so README's Build Status badge
-                // (img.shields.io/endpoint?url=.../badge.json) has something to read.
+                // Build status badge for the README (shields.io endpoint badge
+                // reads this from gh-pages). Rides along with the report files
+                // into gh-pages in the next stage.
                 script {
                     switch (currentBuild.currentResult) {
                         case 'SUCCESS':
@@ -169,7 +150,8 @@ EOF
                         cp -r ${ALLURE_REPORT}/. gh-pages-tmp/
 
                         cd gh-pages-tmp
-                        git config user.email "ci@yourdomain.com"
+                        # Local identity only - required for the commit, not a real account.
+                        git config user.email "ci@jenkins.com"
                         git config user.name "Jenkins CI"
                         git add -A
                         git commit -m "Allure report for build #${BUILD_NUMBER}" || echo "Nothing new to commit"

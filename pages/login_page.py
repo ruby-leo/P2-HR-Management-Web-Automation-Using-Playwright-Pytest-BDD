@@ -24,6 +24,7 @@ class LoginPage(BasePage):
     def click_forgot_password(self):
         self.forgot_password_link.click()
     def perform_login(self,username,password):
+        """Fills username and password, then clicks Login."""
         self.enter_username(username)
         self.enter_password(password)
         self.click_login_btn()

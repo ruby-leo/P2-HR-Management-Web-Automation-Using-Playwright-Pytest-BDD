@@ -31,20 +31,18 @@ def click_add_button(pages: PageRegistry):
 
 @when("fills in the new user details:")
 def fill_new_user_form(pages: PageRegistry, datatable, scenario_context, browser_name):
+    """Generates a unique username (timestamp + browser initial) so
+    chromium/firefox workers running in parallel never collide, even if
+    they hit the exact same second."""
     form_data = {row[0].strip(): row[1].strip() for row in datatable}
 
-    # Generate unique dynamic username to prevent duplicates - append the
-    # browser's first letter so chromium/firefox workers running in parallel
-    # never collide even if they hit the same second
     unique_suffix = f"{int(time.time())}{browser_name[0]}"
     unique_username = f"{form_data['Username']}_{unique_suffix}"
 
-    # Save context for Search & Login steps
     scenario_context["username"] = unique_username
     scenario_context["password"] = form_data["Password"]
     scenario_context["employee_name"] = form_data["Employee Name"]
 
-    # Fill form
     pages.admin_page.select_user_role(form_data["User Role"])
     pages.admin_page.select_employee_name(form_data["Employee Name"])
     pages.admin_page.select_status(form_data["Status"])
@@ -70,8 +68,6 @@ def search_for_new_user(pages: PageRegistry, scenario_context):
 @then("the user should be displayed in the results table")
 def verify_user_in_table(pages: PageRegistry, scenario_context):
     created_username = scenario_context["username"]
-
-    # Filter the results table for the exact created username
     matched_row = pages.admin_page.table_rows.filter(has_text=created_username)
     expect(matched_row).to_have_count(1)
 
@@ -94,5 +90,7 @@ def verify_login_success(pages: PageRegistry):
 
 @then("the top bar should display the user profile name")
 def verify_profile_name(pages: PageRegistry, scenario_context):
+    """Case-insensitive: OrangeHRM can render the logged-in user's name in
+    a different case than it was entered in (e.g. 'nithya s' vs 'Nithya S')."""
     expected_name = scenario_context["employee_name"]
     expect(pages.dashboard_page.profile_name).to_contain_text(expected_name, ignore_case=True)

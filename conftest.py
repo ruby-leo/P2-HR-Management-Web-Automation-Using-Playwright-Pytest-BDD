@@ -7,37 +7,50 @@ from playwright.sync_api import Page, expect
 from page_registry import PageRegistry
 from utilities.load_json_test_data import read_json
 
-# Set global assertion timeout to 20 seconds (20000 ms) as Orange HRM site is slow often times
+# OrangeHRM's demo site is slow to respond at times, so give assertions more
+# room than Playwright's 5s default before failing.
 expect.set_options(timeout=20000)
+
 
 @pytest.fixture(scope="session")
 def test_data():
+    """Load shared test data (credentials, etc.) once per test session."""
     return read_json("test_data.json")
+
 
 @pytest.fixture(scope="function")
 def pages(page: Page, request):
+    """Give each test a PageRegistry, the single entry point for all Page Objects."""
     return PageRegistry(page, request)
+
 
 @pytest.fixture(scope="function")
 def scenario_context():
-    """Dictionary to share state between BDD steps in a scenario."""
+    """Plain dict for passing state between BDD steps within one scenario."""
     return {}
+
 
 @pytest.fixture(autouse=True)
 def _multi_browser(browser_name):
-    """Forces pytest-playwright to parametrize tests across --browser values,
-    which otherwise breaks when a custom fixture wraps `page` (see
-    microsoft/playwright-pytest#172). so explicitly pulling in the browser_name fixture"""
+    """Force pytest-playwright to parametrize tests across --browser values.
+
+    Wrapping the `page` fixture (via `pages` above) otherwise breaks that
+    parametrization - see microsoft/playwright-pytest#172. Requesting
+    browser_name here works around it.
+    """
     return browser_name
+
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_bdd_before_scenario(request, feature, scenario):
+    """Tag each Allure scenario with its browser and Examples-table parameters."""
     yield
     browser = request.getfixturevalue("browser_name")
     allure.dynamic.tag(browser)
     allure.dynamic.parameter("browser", browser)
 
-    # Pull out any Examples-table values pytest-bdd parametrized this scenario with
+    # Scenario Outlines parametrize via pytest-bdd's callspec; surface those
+    # values (minus browser_name, already handled above) as Allure parameters.
     callspec = getattr(request.node, "callspec", None)
     example_params = {}
     if callspec:
@@ -52,26 +65,27 @@ def pytest_bdd_before_scenario(request, feature, scenario):
     else:
         allure.dynamic.title(f"{scenario.name} [{browser}]")
 
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_teardown(item, nextitem):
+    """Attach each test's Playwright screenshot(s) and video to its Allure result."""
     yield
     try:
-        # 1. Resolve base test-results directory
         base_dir = item.config.getoption("--output", default="test-results")
         base_path = Path(base_dir)
         if not base_path.is_dir():
             return
-        # 2. Find the node id slug
+
+        # Playwright names each test's output folder after a slugified node ID -
+        # rebuild that slug so we can find the matching folder below.
         node_id_slug = item.name.replace("_", "-").replace("@","-").replace(" ","-").replace("[", "-").replace("]","").replace("...", "-").replace(".", "-").replace("---", "-").replace("--", "-").lower()
 
-        # 3. Find the specific subdirectory matching this unique slug string
         specific_test_dir = None
         for folder in base_path.iterdir():
             if folder.is_dir() and node_id_slug in folder.name:
                 specific_test_dir = folder
                 break
 
-        # 4. Process and attach media ONLY from this target subdirectory
         if specific_test_dir:
             for file in specific_test_dir.iterdir():
                 if file.is_file():

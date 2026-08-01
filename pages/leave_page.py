@@ -57,6 +57,9 @@ class LeavePage(BasePage):
             self.autocomplete_dropdown.get_by_text(employee_name, exact=False).first.click(timeout=15000)
 
     def _create_missing_employee(self, employee_name: str, username: str, password: str):
+        """Creates the given employee via PIM > Add Employee in a separate browser
+        tab, then closes it - keeps this page's already-filled Assign Leave form
+        state untouched while the employee is created elsewhere."""
         parsed = urlparse(self.page.url)
         base_url = f"{parsed.scheme}://{parsed.netloc}"
 
@@ -81,10 +84,12 @@ class LeavePage(BasePage):
         self._fill_date_field(self.to_date_input, to_date)
 
     def _fill_date_field(self, field, feature_file_date_str: str):
+        """Fills a single date field using its own placeholder-detected format -
+        OrangeHRM's From/To date fields aren't guaranteed to share the same
+        format, so each is detected and converted independently."""
         placeholder = field.get_attribute("placeholder") or "yyyy-mm-dd"
         target_format = self._strftime_format_from_placeholder(placeholder)
 
-        # Feature file dates are written as dd-mm-yyyy
         parsed_date = datetime.strptime(feature_file_date_str, "%d-%m-%Y")
         formatted_value = parsed_date.strftime(target_format)
         field.clear()
@@ -102,13 +107,12 @@ class LeavePage(BasePage):
         )
 
     def click_assign(self):
-        """Clicks assign and handles the optional confirmation popup if balance is insufficient."""
+        """Clicks Assign. OrangeHRM sometimes shows a 'Confirm Leave Assignment'
+        modal (e.g. when the leave balance is insufficient) - if it appears
+        within 10s, confirms it; otherwise proceeds without one."""
         self.assign_button.click()
-        # If OrangeHRM displays a "Confirm Leave Assignment" modal popup
-        # Wait up to 3s for the optional modal button to appear before clicking
         try:
             self.confirm_ok_button.wait_for(state="visible", timeout=10000)
             self.confirm_ok_button.click()
         except Exception:
-            # If no modal appears (e.g. employee has enough balance), continue
             pass

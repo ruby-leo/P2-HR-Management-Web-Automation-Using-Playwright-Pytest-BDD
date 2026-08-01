@@ -12,9 +12,14 @@ class SidePanelPage(BasePage):
     def get_side_menu_item(self, item_name: str):
         """Returns the locator for a specific main menu item by name."""
         return self.side_menu_item(item_name)
+
     def get_sub_tab_locator(self, sub_tab_name: str):
+        """Returns the locator for a specific sub-tab link by name."""
         return self.sub_tabs(sub_tab_name)
+
     def click_sub_tab_locator(self, sub_tab_locator):
         sub_tab_locator.click()
+
     def navigate_to_the_sub_menu(self, sub_menu_name):
+        """Clicks the given top-level side menu item to navigate into it."""
         self.side_menu_item(sub_menu_name).click()

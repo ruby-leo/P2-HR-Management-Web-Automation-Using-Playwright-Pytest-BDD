@@ -29,17 +29,15 @@ def click_submit_claim_tab(pages: PageRegistry):
 
 @when("selects Event Accommodation and Currency and enter reason")
 def fill_claim_details(pages: PageRegistry, scenario_context, browser_name):
-    # Select Event
+    """Generates remarks unique per run (timestamp + browser initial) so
+    chromium/firefox workers running in parallel never produce identical
+    remarks even if they land in the same second - stored in scenario_context
+    so later steps can filter the claims table for this exact submission."""
     pages.claim_page.select_event_option("Travel Allowance")
-    # Select Currency
     pages.claim_page.select_currency_option("Indian Rupee")
-    # Fill Remarks
-    # Generate unique timestamp string, with the browser's first letter appended
-    # so chromium/firefox workers running in parallel never produce identical
-    # remarks even if they land in the same second
+
     current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     unique_remarks = f"Business Travel on {current_time_str}{browser_name[0]}"
-    # Store remarks in scenario_context for later steps
     scenario_context["unique_remarks"] = unique_remarks
 
     pages.claim_page.enter_remarks(unique_remarks)
@@ -55,13 +53,13 @@ def verify_success_toast(pages: PageRegistry):
 
 @when('the user checks the "My Claims" history table')
 def open_my_claims_tab(pages: PageRegistry, page):
-    # wait for few seconds as immediate navigation to my claim page results in a mixed up page
+    """Waits before navigating - immediate navigation to My Claims can land
+    on a stale/mixed-up page state right after a claim submission."""
     page.wait_for_timeout(5000)
     pages.claim_page.my_claims_link.click()
 
 @then("the newly submitted claim should be listed with status Initiated")
 def verify_submitted_claim_in_table(pages: PageRegistry, scenario_context):
-    # Filter rows matching the event, status, and remarks entered previously
     claim_row = (
         pages.claim_page.table_rows
         .filter(has_text="Travel Allowance")

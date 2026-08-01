@@ -30,24 +30,23 @@ def navigate_to_menu_path(pages: PageRegistry):
 
 @when("fills out the leave assignment form:")
 def fill_leave_form(pages: PageRegistry, datatable, scenario_context, test_data, browser_name):
+    """Creates a brand-new employee every run (unique name/username via
+    timestamp + browser initial) so this test never collides with a
+    previous run's leave dates ('overlapping leave requests' error), and
+    never hits a stale username from a concurrent chromium/firefox run."""
     form_data = {row[0].strip(): row[1].strip() for row in datatable}
 
-    # Create a brand-new employee every run so this test never collides with
-    # a previous run's leave dates ("overlapping leave requests" error).
     unique_suffix = f"{int(time.time())}{browser_name[0]}"
     employee_name = f"{form_data['Employee Name']} {unique_suffix}"
     employee_username = f"{test_data['test_employee_account_username']}_{unique_suffix}"
     employee_password = test_data["test_employee_account_password"]
 
-    # Store the input data in context for later steps
     scenario_context["from_date"] = form_data["From Date"]
     scenario_context["leave_type"] = form_data["Leave Type"]
     scenario_context["employee_name"] = employee_name
     scenario_context["employee_username"] = employee_username
     scenario_context["employee_password"] = employee_password
 
-    # employee_name is guaranteed unique/never-before-seen, so the autocomplete
-    # lookup will always miss and create_if_missing will always create it fresh.
     pages.leave_page.select_employee(
         employee_name,
         create_if_missing=True,
@@ -68,27 +67,27 @@ def verify_toast_message(pages: PageRegistry, expected_message: str):
 
 @when("the employee user navigates to Leave and then My Leave")
 def switch_to_employee_and_navigate_to_my_leave(pages: PageRegistry, scenario_context):
-    # 1. Log out the Admin user
+    """Logs out the Admin, logs in as the employee created earlier in this
+    scenario, then navigates to My Leave to verify the assignment from
+    the employee's own perspective."""
     pages.dashboard_page.logout()
 
-    # 2. Log in with Employee credentials
     pages.login_page.perform_login(
         scenario_context["employee_username"],
         scenario_context["employee_password"],
     )
     expect(pages.dashboard_page.dashboard_header).to_be_visible()
 
-    # 3. Navigate to Leave > My Leave
     pages.side_panel_page.navigate_to_the_sub_menu("Leave")
     pages.leave_page.my_leave_link.click()
 
 @then("the newly assigned leave record should appear")
 def verify_assigned_leave_record(pages: PageRegistry, scenario_context):
-    # Feature file dates are written as dd-mm-yyyy
+    """The My Leave table's date format isn't consistent - matches against
+    every permutation of day/month/year since the feature file's dd-mm-yyyy
+    date could render as any of the six orderings below."""
     from_date = datetime.strptime(scenario_context["from_date"], "%d-%m-%Y")
 
-    # The My Leave table doesn't consistently render one date format -
-    # check for match on any of the following
     possible_formats = [
         from_date.strftime("%Y-%m-%d"),  # 2026-08-06
         from_date.strftime("%Y-%d-%m"),  # 2026-06-08

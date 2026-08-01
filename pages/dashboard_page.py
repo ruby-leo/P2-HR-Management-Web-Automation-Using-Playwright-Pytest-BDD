@@ -12,5 +12,6 @@ class DashboardPage(BasePage):
         self.logout_link = page.get_by_role("menuitem", name="Logout")
 
     def logout(self):
+        """Opens the user profile dropdown and clicks Logout."""
         self.user_dropdown.click()
         self.logout_link.click()
