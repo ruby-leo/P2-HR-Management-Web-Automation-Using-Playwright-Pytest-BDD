@@ -102,7 +102,7 @@ addopts = --browser chromium --browser firefox -s --screenshot=on --video=on -W 
 
 A custom `_multi_browser` fixture in `conftest.py` works around a known `pytest-playwright` limitation so browser parametrization keeps working even with a custom `page` fixture wrapper.
 
-### Screenshots & videos → Allure, automatically
+### Screenshots & videos → added to Allure automatically
 
 `conftest.py` hooks into `pytest_runtest_teardown` to locate each test's local Playwright output folder and attach every `.png`/`.webm` file it finds directly onto that test's entry in the Allure report — so opening a scenario in Allure shows its full recording and screenshot inline, with zero manual wiring per test.
 
@@ -115,6 +115,67 @@ The `Jenkinsfile` runs on every push:
 3. Generate the Allure report (test failures don't block this step — the report always gets built)
 4. Fetch prior Allure history for trend graphs
 5. Publish the report to the `gh-pages` branch → served via GitHub Pages
+
+---
+
+## Object-Oriented Design
+
+The framework is built around the **Page Object Model (POM)**, and each of the four core OOP pillars earns its place for a concrete reason rather than being bolted on for its own sake:
+
+### Encapsulation
+Every `pages/*.py` class bundles a screen's **locators and the actions that use them** into one unit, hiding Playwright selector details from anything outside the class. A step definition never touches a CSS selector directly — it calls `pages.login_page.perform_login(username, password)` and the class internally owns *how* that happens (which fields, in what order, with what waits). If OrangeHRM changes a class name or DOM structure, exactly one file needs to change.
+
+### Inheritance
+Every page object — `LoginPage`, `DashboardPage`, `AdminPage`, `ClaimPage`, `LeavePage`, `PimPage`, `SidePanelPage`, `ResetPasswordPage` — inherits from a common `BasePage`:
+
+```python
+class BasePage:
+    def __init__(self, page: Page):
+        self.page = page
+
+    def navigate_to(self, url: str):
+        self.page.goto(url, wait_until="domcontentloaded", timeout=120000)
+```
+
+`navigate_to()` (and the shared `self.page` handle) is written once and reused by every subclass, rather than each page object re-implementing its own navigation boilerplate.
+
+### Abstraction
+Test step definitions operate entirely at the level of *what* should happen (`select_employee_name(name)`, `click_assign()`, `enter_dates(from_date, to_date)`), never *how*. The "how" — dropdown-opening clicks, autocomplete waits, date-format detection and conversion, retry logic on duplicate Employee IDs — is abstracted away inside the page classes. This is what lets the `.feature` files and step definitions stay readable as plain business logic.
+
+### Composition (favoring composition over inheritance where it fits better)
+`PageRegistry` doesn't inherit from the page classes — it **composes** them, lazily instantiating each one on first access via a property:
+
+```python
+@property
+def leave_page(self):
+    if not self._leave_page:
+        self._leave_page = LeavePage(self.page)
+    return self._leave_page
+```
+
+This gives every step definition a single `pages` fixture that transparently provides any page object on demand (`pages.leave_page`, `pages.admin_page`, etc.), without paying the cost of instantiating pages that a given scenario never touches.
+
+*Note on polymorphism*: this project doesn't lean heavily on runtime polymorphism (e.g. overriding a shared method differently per subclass) — each page's actions are specific enough to its own screen that there wasn't a natural case for it. `BasePage` is used purely as a shared-behavior base via inheritance, not as a polymorphic interface with varying implementations.
+
+---
+
+## Test Coverage
+
+Scenarios are organized by feature area, each with its own `.feature` file and matching step-definition module:
+
+| Feature File | Covers |
+|---|---|
+| `login.feature` | Page load/accessibility, presence and enabled-state of login fields, a Scenario Outline covering multiple valid/invalid credential combinations, and the "Forgot Password" reset flow |
+| `navigation.feature` | Visibility and clickability of every main side-navigation menu item, and presence/navigation-correctness of My Info's sub-tabs |
+| `user_management.feature` | End-to-end user creation via Admin → Add User (including employee lookup, role/status selection), search verification in the results table, and login validation with the freshly created credentials |
+| `leave_management.feature` | Assigning leave to an employee, self-healing employee creation via PIM when the employee doesn't already exist, and cross-checking the assignment from the employee's own My Leave view |
+| `claim_management.feature` | Submitting a new expense claim end-to-end and verifying it appears with the correct status in the My Claims history table |
+
+### What's exercised beyond the happy path
+- **Self-healing test data** — `leave_page.select_employee(..., create_if_missing=True)` transparently creates a missing employee via PIM mid-scenario rather than failing outright, with duplicate-Employee-ID collision handling built in for parallel runs.
+- **Unique data generation per run** — usernames, employee names, and claim remarks are suffixed with a timestamp plus the running browser's initial, so chromium/firefox workers executing in parallel never collide even when they land in the same second.
+- **Format-tolerant date handling** — the Assign Leave date fields are filled using whatever format OrangeHRM's own placeholder specifies (rather than a hardcoded assumption), and the My Leave table verification checks every plausible date-ordering permutation, since the app doesn't render dates consistently.
+- **Case-insensitive and multi-format assertions** — profile-name and date checks tolerate the app's own inconsistencies (casing, date ordering) without weakening what's actually being verified.
 
 ---
 
